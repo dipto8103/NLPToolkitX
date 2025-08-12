@@ -1,6 +1,6 @@
 # NLPToolkitX
 
-A lightweight yet powerful **Natural Language Processing (NLP) preprocessing toolkit** with configurable options for tokenization, lemmatization, negation scope handling, slang expansion, emoji demojization, and more. Designed for quick integration into ML/NLP pipelines.
+A lightweight yet powerful **Natural Language Processing (NLP) preprocessing toolkit** with configurable options for tokenization, lemmatization, negation scope handling, slang expansion, emoji demojization, and more. Designed for quick integration into ML/NLP pipelines. Includes optional GPU acceleration with PyTorch for certain operations.
 
 ---
 
@@ -10,27 +10,56 @@ A lightweight yet powerful **Natural Language Processing (NLP) preprocessing too
 pip install NLPToolkitX
 ```
 
-**Note:** First-time use will download required NLTK data packages automatically.
+**Notes:**
+
+* First-time use will download required NLTK data packages automatically.
+* If you want GPU acceleration for vectorization and encoding, install with:
+
+  ```bash
+  pip install NLPToolkitX[torch]
+  ```
 
 ---
 
 ## Quick Start
 
 ```python
-from NLPToolkitX import preprocess_text, PreprocessConfig
+from NLPToolkitX import (
+    PreprocessConfig,
+    process_text,
+    process_dataframe,
+    validate_config,
+    contractions_source,
+    has_torch,
+    build_vocab,
+    texts_to_sequences,
+    pad_sequences,
+    label_encode,
+    one_hot_encode,
+)                           # import as needed, all shown for demo purposes
 
-config = PreprocessConfig(
-    contractions_source='pypi',
-    tokenize='smart',
-    negation_scope=True,
+cfg = PreprocessConfig(
+    lowercase=True,
+    strip_html=True,
+    urls="remove",           # keep | remove | mask
+    mentions="mask",         # keep | remove | mask
+    hashtags="split",        # keep | remove | split
+    numbers="mask",          # keep | remove | mask  → replaces digits with "NUM"
+    emojis="demojize",       # keep | remove | demojize
+    contractions=True,        # expand "don't" → "do not"
+    accents=True,
+    repeats_to=2,             # cool → coo, soooo → soo
+    punctuation="remove",    # keep | remove | space
+    tokenize="smart",        # simple | smart
+    stopwords=None,           # use default list if None
+    negation_scope=True,      # adds _NEG after not/never/no up to short scope
     lemmatize=True,
     stem=False,
-    urls='remove',
-    mentions='mask',
-    hashtags='split',
-    numbers='mask',
-    emojis='demojize',
-    punctuation='remove'
+    slang_dict={              # optional: inline slang mapping
+        "idk": "i do not know",
+        "brb": "be right back",
+        "imo": "in my opinion",
+    },
 )
 
 text = "BRB, idk what's going on 😂! Check this out: https://example.com @Kazuma-sama #ExplosionMagic I won't say I'm not impressed!!! 100%"
@@ -54,8 +83,8 @@ print(processed)
 | `contractions_source` | str  | `'pypi'` or `'local'` for contractions expansion. |
 | `tokenize`            | str  | `'basic'` or `'smart'` tokenization.              |
 | `negation_scope`      | bool | Add `_NEG` suffix to words in negation scope.     |
-| `lemmatize`           | bool | Enable lemmatization.                             |
-| `stem`                | bool | Enable stemming.                                  |
+| `lemmatize`           | bool | Enable lemmatization (requires NLTK).             |
+| `stem`                | bool | Enable stemming (requires NLTK).                  |
 | `urls`                | str  | `'remove'` or `'mask'` URLs.                      |
 | `mentions`            | str  | `'remove'` or `'mask'` mentions (@user).          |
 | `hashtags`            | str  | `'split'` to break hashtag into words.            |
@@ -100,6 +129,9 @@ print(vectors.shape)
 print(vocab)
 ```
 
+**Note:**
+If PyTorch is installed, `vectorize_texts` can run on GPU for faster processing. Otherwise, it will run on CPU.
+
 ---
 
 ## Custom Slang Dictionary
@@ -110,6 +142,17 @@ You can load your own slang mappings:
 from NLPToolkitX import load_slang_dictionary
 
 load_slang_dictionary("slang.txt")  # one slang mapping per line: word=replacement
+```
+
+---
+
+## Optional Dependencies & Warnings
+
+If PyTorch (`torch`) is not installed, certain functions like `label_encode` and `one_hot_encode` will fall back to slower CPU-based processing.
+When falling back, the system will display a tip:
+
+```
+[Tip] Install torch for faster GPU-accelerated encoding: pip install NLPToolkitX[torch]
 ```
 
 ---
@@ -131,6 +174,7 @@ load_slang_dictionary("slang.txt")  # one slang mapping per line: word=replaceme
 * Reuse the same `PreprocessConfig` instance for speed.
 * Use batch processing for large datasets.
 * Masking instead of removing can help preserve sentence structure.
+* Install PyTorch for GPU acceleration.
 
 ---
 
