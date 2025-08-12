@@ -40,10 +40,17 @@ dependencies = [
 [project.optional-dependencies]
 torch = ["torch>=1.8"]
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["NLPToolkitX*"]
 exclude = ["tests*", "examples*", "docs*", "build*", "dist*"]
+
+# Ensure slang.txt is shipped inside the wheel/sdist
+[tool.setuptools.package-data]
+NLPToolkitX = ["slang.txt"]
 
 [project.urls]
 Homepage = "https://github.com/dipto8103/NLPToolkitX"
