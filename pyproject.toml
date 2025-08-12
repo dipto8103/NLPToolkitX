@@ -48,7 +48,6 @@ where = ["."]
 include = ["NLPToolkitX*"]
 exclude = ["tests*", "examples*", "docs*", "build*", "dist*"]
 
-# Ensure slang.txt is shipped inside the wheel/sdist
 [tool.setuptools.package-data]
 NLPToolkitX = ["slang.txt"]
 

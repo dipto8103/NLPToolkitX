@@ -12,6 +12,13 @@ import unicodedata
 import os
 
 try:
+    from NLPToolkitX.utils_slang import load_builtin_slang
+except Exception:
+    load_builtin_slang = lambda: {}
+
+DEFAULT_SLANG = load_builtin_slang()
+
+try:
     import torch
     _HAS_TORCH = True
 except Exception:
@@ -118,12 +125,10 @@ def load_slang_dictionary(file_path: Optional[str]) -> Dict[str, str]:
         return {}
     return slang_dict
 
-# Set your slang file path here if desired; else leave as None
-SLANG_FILE = None
-_slang_dict = load_slang_dictionary(SLANG_FILE)
 
 def chat_conversion(text: str, chat_words: Optional[Dict[str, str]] = None) -> str:
-    chat_words = chat_words if chat_words is not None else _slang_dict
+    # If user did not pass a dict, use the built-in slang shipped with the package
+    chat_words = DEFAULT_SLANG if chat_words is None else chat_words
     if not chat_words:
         return text
     new_words = []
@@ -131,6 +136,7 @@ def chat_conversion(text: str, chat_words: Optional[Dict[str, str]] = None) -> s
         up = w.upper()
         new_words.append(chat_words.get(up, w))
     return " ".join(new_words)
+
 
 # ===================== Stopwords =====================
 DEFAULT_STOPWORDS = set([
