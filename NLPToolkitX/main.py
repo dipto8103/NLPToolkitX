@@ -1,16 +1,24 @@
-# FunctionCall.py — unified NLP preprocessing pipeline
+# Unified NLP preprocessing pipeline
 # Python 3.7+ compatible
 
-from collections import Counter
 from tabulate import tabulate
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional
 import pandas as pd
 import numpy as np
+import warnings
 import string
-import torch
 import re
 import unicodedata
 import os
+
+try:
+    import torch
+    _HAS_TORCH = True
+except Exception:
+    _HAS_TORCH = False
+
+def has_torch() -> bool:
+    return _HAS_TORCH
 
 try:
     import emoji as _emoji
@@ -27,15 +35,24 @@ try:
 except Exception:
     _HAS_NLTK = False
 
+if _HAS_NLTK:
+    try:
+        nltk.download('punkt', quiet=True)
+        nltk.download('wordnet', quiet=True)
+        nltk.download('omw-1.4', quiet=True)
+        # try classic tagger; if missing, try the newer *_eng variant
+        try:
+            nltk.download('averaged_perceptron_tagger', quiet=True)
+        except Exception:
+            nltk.download('averaged_perceptron_tagger_eng', quiet=True)
+    except Exception:
+        pass
+
 try:
     import contractions as _contractions_lib
     _HAS_CONTRACTIONS_LIB = True
 except Exception:
     _HAS_CONTRACTIONS_LIB = False
-
-nltk.download('punkt')
-nltk.download('wordnet')
-nltk.download('averaged_perceptron_tagger')
 
 # ===================== Basic cleaners (compatibility) =====================
 def to_lowercase(text: str) -> str:
@@ -522,10 +539,9 @@ def label_encode(data, column_name: Optional[str] = None):
         raise TypeError("data must be list or DataFrame")
 
     label_to_int = {lbl: i + 1 for i, lbl in enumerate(unique)}  # 1-based like original
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    _ = torch.arange(1, len(unique) + 1, device=device, dtype=torch.int32)  # parity; not returned
 
-    table = [[" "]+unique]
+    # Pretty table (pure Python; no torch required)
+    table = [[" "] + unique]
     for lbl in unique:
         row = [lbl] + [label_to_int[lbl] if lbl == col else 0 for col in unique]
         table.append(row)
@@ -533,10 +549,12 @@ def label_encode(data, column_name: Optional[str] = None):
     return label_to_int
 
 
+
+
 def one_hot_encode(data, column_name: Optional[str] = None):
     """
-    Returns (one_hot_tensor, labels_list) and prints a pretty table.
-    For lists, collects unique labels; for DataFrame, uses the column directly.
+    Returns (one_hot_matrix, labels_list) and prints a pretty table.
+    If PyTorch is installed, uses torch.Tensor; otherwise falls back to numpy.ndarray with a warning.
     """
     if isinstance(data, list):
         if any(isinstance(i, list) for i in data):
@@ -551,15 +569,27 @@ def one_hot_encode(data, column_name: Optional[str] = None):
     else:
         raise TypeError("data must be list or DataFrame")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    I = torch.eye(len(unique), dtype=torch.int32, device=device)
+    if _HAS_TORCH:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        I = torch.eye(len(unique), dtype=torch.int32, device=device)
+        rows_for_table = [I[i].cpu().numpy().tolist() for i in range(len(unique))]
+    else:
+        warnings.warn(
+            "⚠️ Torch not found — falling back to NumPy. "
+            "For faster performance, install with: pip install NLPToolkitX[torch]",
+            UserWarning
+        )
+        I = np.eye(len(unique), dtype=np.int32)
+        rows_for_table = [I[i].tolist() for i in range(len(unique))]
 
-    table = [[" "]+unique]
+    # Pretty table
+    table = [[" "] + unique]
     for i, lbl in enumerate(unique):
-        row = [lbl] + I[i].cpu().numpy().tolist()
+        row = [lbl] + rows_for_table[i]
         table.append(row)
     print(tabulate(table, headers="firstrow", tablefmt="grid"))
     return I, unique
+
 
 # ===================== Diagnostics & Validation =====================
 
